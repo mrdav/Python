@@ -1,0 +1,255 @@
+import os
+import random
+import getpass
+import string
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+myrange = (1,  1.1,  1.2,  1.3,  1.4,  1.5,  1.6,  1.7,  1.8,  1.9,  2 ,
+        2.1,  2.2,  2.3,  2.4,  2.5,  2.6,  2.7,  2.8,  2.9,  3 ,  3.1,
+        3.2,  3.3,  3.4,  3.5,  3.6,  3.7,  3.8,  3.9,  4 ,  4.1,  4.2,
+        4.3,  4.4,  4.5,  4.6,  4.7,  4.8,  4.9, 5)
+booked = {}
+watched = {}
+rates = {'American Sniper':[0.0,0,0.0],
+         'Pirates of the Caribbean':[0.0,0,0.0],
+         'Fast and Furious 8':[0.0,0,0.0]
+}
+movies = {'American Sniper':['19:00','22:00'],
+          'Pirates of the Caribbean':['18:00','21:00'],
+          'Fast and Furious 8':['19:00','22:00']
+    
+}
+
+def menu():
+    global choice
+    print("1. View all movies")
+    print("2. Book a Seat")
+    print("3. Cancel a Reservation")
+    print("4. Check your booking number")
+    print("5. Rate a Movie")
+    print("6. Exit")
+    choice = str(input("Enter your choice: "))
+    while choice not in ('1','2','3','4','5','6','7'):
+        print("Invalid choice, options (1-6)")
+        choice = input("Enter your choice: ")
+    if choice == '1':
+        print()
+        view()
+        print()
+        menu()
+    elif choice == '2':
+        print()
+        book()
+        menu()
+    elif choice == '3':
+        print()
+        cancel()
+        menu()
+    elif choice == '4':
+        print()
+        check()
+        menu()
+    elif choice == '5':
+        print()
+        vote()
+        menu()
+    elif choice == '6':
+        quit()
+    elif choice == '7':
+        staff()
+
+
+        
+def view():
+    for k,v in movies.items():
+        # *v unpacks the list
+        print("{}: {} , {}  Rate: {:.1f}/5 votes: {}\n".format(k, *v, rates[k][0], rates[k][1]))
+def gen():
+    letters = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','Z']
+    numbers = ['1','2','3','4','5']
+    randlet = random.choice(letters)
+    randnum1 = random.choice(numbers)
+    randnum2 = random.choice(numbers)
+    return randlet + randnum1 + randnum2
+def check():
+    global bnum
+    bnum = input("Enter your Booking Number: ")
+    while bnum not in booked:
+        if bnum == '0' or bnum == 'back' or bnum == 'exit' or bnum == 'return' or bnum == ' ':
+            menu()
+        print("Could not identify {} please try again".format(bnum))
+        bnum = input("Enter your Booking Number: ")
+    print()
+    print("Found an entry: {}  Movie Name: {}  Time: {}  Seat: {}  Name: {}".format(bnum, booked[bnum][0], booked[bnum][1], booked[bnum][2], booked[bnum][3]))
+    print()
+def book():
+    print("Available movies:")
+    print()
+    for i in movies.keys():
+        print(i)
+        print()
+    mov = input("Choose a movie: ")
+    while mov not in movies.keys():
+        print("'{}' is not recognized. Please choose from the menu".format(mov))
+        mov = input("Choose a movie: ")
+    for movie, time in movies.items():
+        if movie == mov:
+            print()
+            print (*time)
+            print()
+    tim = input("Choose Time: ")
+    while tim not in movies[mov]:
+        print("Error. Choose from the time below.")
+        tim = input("Choose Time: ")
+    name = input("Enter your Full Name: ")
+    rcpt = input("Enter you email address: ")
+    number = str(random.randint(10000, 99999))
+    while number in booked.values():
+        number = str(random.randint(10000, 99999))
+    seat = gen()
+    while seat in booked.values():
+        seat = gen()
+    booked[number] = mov, tim, seat, name, rcpt
+    print()
+    print("Successfully booked a seat. Your unique Book Number: {}, Seat Number: {}. An email have been sent to you.".format(number, seat))
+    try:
+        fromaddr = "cinema@limesky.ga"
+        server = smtplib.SMTP('mail.limesky.ga', 587)
+        msg = MIMEMultipart()
+        msg['From'] = fromaddr
+        server.starttls()
+        msg['To'] = rcpt
+        msg['Subject'] = "Your Booking Number for the movie {}".format(mov)
+        body = "Hello {},\nYou have booked a seat for the movie {} and here is your information:\nBooking Number: {}\nSeat: {}\nMovie Starts at {}\nWhen you arrive, check the monitors for the room number\nHave Fun!\n\nThank you!".format(name, mov, number, seat, tim)
+        msg.attach(MIMEText(body, 'plain'))
+        text = msg.as_string()
+        server.login(fromaddr, "password")
+        server.sendmail(fromaddr, rcpt, text)
+        server.close
+    except (ConnectionRefusedError,TimeoutError):
+        print()
+        print("Could not send email because the server is currently closed, however your seat have been successfully booked")
+        print()
+        menu()
+    print()
+def cancel():
+    check()
+    conf = input("Are you sure you want to delete the entry? Y/N: ")
+    while conf not in ('Y','y','n','N','Yes','yes','No','no'):
+        print("Not acceptable")
+        conf = input("Are you sure you want to delete the entry? Y/N: ")
+    if conf == 'y' or conf == 'Y' or conf == 'Yes' or conf == 'yes':
+        print()
+        print("Successfully canceled the reservation with booking number {}".format(bnum))
+        print()
+        rcpt = booked[bnum][4]
+        try:
+            fromaddr = "cinema@limesky.ga"
+            server = smtplib.SMTP('mail.limesky.ga', 587)
+            msg = MIMEMultipart()
+            msg['From'] = fromaddr
+            server.starttls()
+            msg['To'] = rcpt
+            msg['Subject'] = "Your Booking Number for the movie {} has been Canceled".format(booked[bnum][0])
+            body = "Hello {},\nYou recently have requested the cancellation of your seat for the movie {} and this email is a confirmation. If you did not cancel it, please reply to this email directly.\n\nHave a nice day!".format(booked[bnum][3], booked[bnum][0])
+            msg.attach(MIMEText(body, 'plain'))
+            text = msg.as_string()
+            server.login(fromaddr, "password")
+            server.sendmail(fromaddr, rcpt, text)
+            server.close
+        except (ConnectionRefusedError,TimeoutError):
+            print()
+            print("Could not send confirmation email because the server is currently closed, however your booking number has been canceled")
+            print()
+        finally:
+            del booked[bnum]
+    else:
+        print("User stopped the cancelation. Your Booking Number {} is still valid".format(bnum))
+        print()
+        menu()
+def vote():
+    lnum = input("Enter your last Booking Number: ")
+    if lnum in booked:
+        print()
+        print("Watch the movie '{}' first, and then come back to rate it!".format(booked[lnum][0]))
+        print()
+        menu()
+    elif lnum not in watched:
+        print()
+        print("You must watch the movie first in order to rate")
+        print()
+        menu()
+    elif lnum in watched:
+        movname = watched[lnum][0]
+        success = False
+        rate = 0
+        while ((success == False) and (rate not in myrange)):
+            try:
+                rate = float(input("Enter Stars Rate for the movie '{}' (1-5): ".format(movname)))
+                success = True
+            except ValueError:
+                print("Your rate is not being acceptable. Try again")
+                rate = float(input("Enter Stars Rate for the movie '{}' (1-5): ".format(movname)))
+        print()
+        print("Your Rate has been submitted! {}/5 for the movie '{}'".format(rate, movname))
+        print()
+        del watched[lnum]
+        rates[movname][1] += 1
+        rates[movname][2] += rate
+        rates[movname][0] = rates[movname][2] / rates[movname][1]
+            
+def staff():
+    usr = input("Enter username: ")
+    pwd = getpass.getpass("Enter password: ")
+    if usr != 'staff' and pwd != 'pass':
+        print()
+        print("Authentication Failed")
+        print()
+        menu()
+    bnt = '1'
+    while bnt != '0':
+        bnt = str(input("Enter Booking Number: "))
+        if bnt == '0' or bnt == ' ':
+            menu()
+        while bnt not in booked:
+            if bnt == '0' or bnt == ' ':
+                menu()
+            print("Invaild Booking Number")
+            bnt = input("Enter Booking Number: ")
+        print("Found an entry: {}  Movie Name: {}  Time: {}  Seat: {}  Name: {}".format(bnt, booked[bnt][0], booked[bnt][1], booked[bnt][2], booked[bnt][3]))
+        cnf = input("Confirm? y/n: ")
+        while cnf not in ('y','n'):
+            cnf = input("Confirm? y/n: ")
+        if cnf == 'y':
+            try:
+                fromaddr = "cinema@limesky.ga"
+                server = smtplib.SMTP('mail.limesky.ga', 587)
+                msg = MIMEMultipart()
+                msg['From'] = fromaddr
+                server.starttls()
+                rcpt = booked[bnt][4]
+                msg['To'] = rcpt
+                msg['Subject'] = "Did you like the movie {}? Rate now!".format(booked[bnt][0])
+                body = "Hello {},\nYou recently watched the movie {}.\nPlease tell us and the world your impressions of the movie. Just bring your booking number together!\nThank you.\n\nHave a nice day!".format(booked[bnt][3], booked[bnt][0])
+                msg.attach(MIMEText(body, 'plain'))
+                text = msg.as_string()
+                server.login(fromaddr, "password")
+                server.sendmail(fromaddr, rcpt, text)
+                server.close()
+            except (ConnectionRefusedError,TimeoutError):
+                print()
+                print("Could not send rate email, server closed, however the operation was successful")
+                print()
+            finally:
+                watched[bnt] = booked[bnt][0], booked[bnt][1], booked[bnt][2], booked[bnt][3]
+                del booked[bnt]
+        elif cnf == 'n':
+            cnf2 = input("Not confirmed. Also delete the entry? y/n: ")
+            while cnf2 not in ('y','n'):
+                cnf2 = input("Not confirmed. Also delete the entry? y/n: ")
+            if cnf2 == 'y':
+                del booked[bnt]
+            elif cnf2 == 'n':
+                print("Not deleted. Booking number is still valid.") 
+menu()
